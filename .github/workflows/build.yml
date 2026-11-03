@@ -94,7 +94,7 @@ jobs:
     
             cmake -S plugins -B $buildDir -G Ninja `
               -DCMAKE_BUILD_TYPE=Release `
-              -DPLUGIN_NAME=$name
+              "-DPLUGIN_NAME=$name"
     
             if ($LASTEXITCODE -ne 0) {
                 throw "CMake configure failed for $name"
