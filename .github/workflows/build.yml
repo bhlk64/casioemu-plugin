@@ -26,7 +26,7 @@ jobs:
             name: "Windows-x86"
           - platform: android
             os: ubuntu-latest
-            name: "Windows-x64"
+            name: "Android"
     
     runs-on: ${{ matrix.os }}
     name: Build ${{ matrix.name }}

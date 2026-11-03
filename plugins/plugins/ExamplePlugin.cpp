@@ -17,7 +17,13 @@ public:
     }
 };
 
-extern "C" __attribute__((visibility("default")))
+#ifdef _WIN32
+    #define PLUGIN_EXPORT __declspec(dllexport)
+#else
+    #define PLUGIN_EXPORT __attribute__((visibility("default")))
+#endif
+
+extern "C" PLUGIN_EXPORT
 void fPluginLoad(PluginApi* api) {
     if (!api) return;
 
