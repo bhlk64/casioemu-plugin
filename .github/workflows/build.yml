@@ -47,7 +47,8 @@ jobs:
 
     - name: Build Android
       if: matrix.platform == 'android'
-      run: | chmod +x gradlew
+      run: |
+        chmod +x gradlew
         ./gradlew assembleRelease
 
     - name: Upload Android (Test)
