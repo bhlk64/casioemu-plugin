@@ -147,13 +147,21 @@ jobs:
         path: ./artifacts
 
     - name: Prepare release
+      shell: bash
       run: |
         mkdir -p release_assets
-        COMMIT=${GITHUB_SHA::7}
-        #VERSION=1.0.0
-        # copy + rename .so
+    
         find ./artifacts -name "*.apk" -exec cp {} release_assets/ \;
-        find ./artifacts -name "*.dll" -exec cp {} release_assets/ \;
+    
+        find ./artifacts -name "*.dll" | while read -r file; do
+          artifact=$(basename "$(dirname "$file")")
+          arch=${artifact#Windows-}
+    
+          filename=$(basename "$file" .dll)
+          cp "$file" "release_assets/${filename}-${arch}.dll"
+        done
+    
+        ls -lh release_assets
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v3
