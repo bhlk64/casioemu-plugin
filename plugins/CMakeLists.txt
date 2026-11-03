@@ -27,11 +27,11 @@ add_library(${PLUGIN_NAME} SHARED
     ${IMGUI_SOURCES}
 )
 
-target_include_directories(Plugins PRIVATE
+target_include_directories(${PLUGIN_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui"
 )
 
 if(ANDROID)
-    target_link_libraries(Plugins PRIVATE log GLESv2)
+    target_link_libraries(${PLUGIN_NAME} PRIVATE log GLESv2)
 endif()
