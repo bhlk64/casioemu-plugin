@@ -12,9 +12,24 @@ permissions:
   contents: write
 
 jobs:
-  build-android:
-    name: Build Android
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - platform: windows
+            platform_arch: x64
+            os: windows-latest
+            name: "Windows-x64"
+          - platform: windows
+            platform_arch: Win32
+            os: windows-latest
+            name: "Windows-x86"
+          - platform: android
+            os: ubuntu-latest
+            name: "Windows-x64"
+    
+    runs-on: ${{ matrix.os }}
+    name: Build ${{ matrix.name }}
 
     steps:
     - name: Checkout
@@ -23,25 +38,52 @@ jobs:
         submodules: recursive
 
     - name: Set up JDK 21
+      if: matrix.platform == 'android'
       uses: actions/setup-java@v5
       with:
         java-version: "21"
         distribution: temurin
         cache: gradle
 
-    - name: Grant execute permission
-      run: chmod +x gradlew
+    - name: Build Android
+      if: matrix.platform == 'android'
+      run: | chmod +x gradlew
+        ./gradlew assembleRelease
 
-    - name: Build APK, .so
-      run: ./gradlew assembleRelease
-
-    - name: Upload TEST
+    - name: Upload Android (Test)
+      if: matrix.platform == 'android'
       uses: actions/upload-artifact@v7
       with:
         name: native-libs
-        path: app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/*.so
-        # path: .
+        path: .
         archive: true
+
+
+
+    - name: Setup MSVC
+      if: matrix.platform == 'windows'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: ${{ matrix.platform_arch == 'Win32' && 'x86' || 'x64' }}
+
+    - name: Configure Windows
+      if: matrix.platform == 'windows'
+      working-directory: plugins
+      run: cmake -B build-${{matrix.platform_arch}} -G Ninja 
+
+    - name: Build Windows
+      if: matrix.platform == 'windows'
+      working-directory: plugins
+      run: cmake --build build-${{matrix.platform_arch}} --parallel
+    
+    - name: Upload Windows (test)
+      if: matrix.playform_arch == 'windows'
+      uses: actions/upload-artifact@v7
+      with:
+        name: build-${{matrix.platform_arch}}
+        path: .
+        archive: true
+        
 
     - name: Dump CMake error (if failed)
       if: failure()
@@ -51,7 +93,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: build-android
+    needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -70,14 +112,15 @@ jobs:
         COMMIT=${GITHUB_SHA::7}
         #VERSION=1.0.0
         # copy + rename .so
-        find ./artifacts -name "*.so" -exec cp {} release_assets/ \;
+        find ./artifacts -name "*.apk" -exec cp {} release_assets/ \;
+        find ./artifacts -name "*.dll" -exec cp {} release_assets/ \;
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v3
       with:
         tag_name: stable-${{ github.sha }}
-        name: "🚧 Android Auto Build"
-        body: "Auto Android build from stable branch"
+        name: "🚧 Auto Build"
+        body: "Auto build from main branch"
         files: release_assets/*
         prerelease: true
       env:
