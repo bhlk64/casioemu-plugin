@@ -51,12 +51,25 @@ jobs:
         chmod +x gradlew
         ./gradlew assembleRelease
 
-    - name: Upload Android (Test)
+    - name: Rename Android APKs
+      if: matrix.platform == 'android'
+      shell: pwsh
+      run: |
+        Get-ChildItem "app/build/outputs/apk" -Directory | ForEach-Object {
+            $flavor = $_.Name
+            $apk = Get-ChildItem "$($_.FullName)/release/*.apk" -File
+    
+            foreach ($file in $apk) {
+                Rename-Item $file.FullName "$flavor.apk"
+            }
+        }
+
+    - name: Upload Android
       if: matrix.platform == 'android'
       uses: actions/upload-artifact@v7
       with:
         name: native-libs
-        path: .
+        path: /app/build/outputs/apk/*/release/*.apk
         archive: true
 
 
@@ -67,24 +80,51 @@ jobs:
       with:
         arch: ${{ matrix.platform_arch == 'Win32' && 'x86' || 'x64' }}
 
-    - name: Configure Windows
+    - name: Build Windows plugins
       if: matrix.platform == 'windows'
-      working-directory: plugins
-      run: cmake -B build-${{matrix.platform_arch}} -G Ninja 
-
-    - name: Build Windows
-      if: matrix.platform == 'windows'
-      working-directory: plugins
-      run: cmake --build build-${{matrix.platform_arch}} --parallel
+      shell: pwsh
+      run: |
+        $plugins = Get-ChildItem "plugins/plugins/*.cpp" -File
     
-    - name: Upload Windows (test)
+        foreach ($plugin in $plugins) {
+            $name = $plugin.BaseName
+            $buildDir = "build-$name-${{ matrix.platform_arch }}"
+    
+            Write-Host "Building $name (${{ matrix.platform_arch }})"
+    
+            cmake -S plugins -B $buildDir -G Ninja `
+              -DCMAKE_BUILD_TYPE=Release `
+              -DPLUGIN_NAME=$name
+    
+            if ($LASTEXITCODE -ne 0) {
+                throw "CMake configure failed for $name"
+            }
+    
+            cmake --build $buildDir --parallel
+    
+            if ($LASTEXITCODE -ne 0) {
+                throw "Build failed for $name"
+            }
+        }
+    
+    - name: Collect Windows DLLs
       if: matrix.platform == 'windows'
-      uses: actions/upload-artifact@v7
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force "dist/${{ matrix.platform_arch }}" | Out-Null
+    
+        Get-ChildItem "build-*-${{ matrix.platform_arch }}" -Filter "*.dll" -Recurse |
+          ForEach-Object {
+            Copy-Item $_.FullName "dist/${{ matrix.platform_arch }}/$($_.Name)"
+          }
+    
+    - name: Upload Windows DLLs
+      if: matrix.platform == 'windows'
+      uses: actions/upload-artifact@v4
       with:
-        name: build-${{matrix.platform_arch}}
-        path: .
-        archive: true
-        
+        name: Windows-${{ matrix.platform_arch == 'Win32' && 'x86' || 'x64' }}
+        path: dist/${{ matrix.platform_arch }}/*.dll
+        if-no-files-found: error
 
     - name: Dump CMake error (if failed)
       if: failure()

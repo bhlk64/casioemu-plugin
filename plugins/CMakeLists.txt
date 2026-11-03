@@ -4,6 +4,10 @@ project(PluginsBuild LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(NOT DEFINED PLUGIN_NAME)
+    message(FATAL_ERROR "PLUGIN_NAME is required")
+endif()
+
 add_compile_definitions(IMGUI_API=)
 add_compile_definitions(CASIOEMU_PLUGIN_API=1)
 
@@ -18,8 +22,8 @@ file(GLOB PLUGIN_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*.cpp"
 )
 
-add_library(Plugins SHARED
-    ${PLUGIN_SOURCES}
+add_library(${PLUGIN_NAME} SHARED
+    "plugins/${PLUGIN_NAME}.cpp"
     ${IMGUI_SOURCES}
 )
 

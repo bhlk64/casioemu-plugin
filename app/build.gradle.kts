@@ -1,9 +1,23 @@
+val pluginDir = file("../plugins/plugins")
+
+val pluginFiles = pluginDir
+    .listFiles()
+    ?.filter { it.isFile && it.extension == "cpp" }
+    ?: emptyList()
+
+val pluginVariants = pluginFiles.map { source ->
+    val pluginName = source.nameWithoutExtension
+    val flavorName = pluginName.replaceFirstChar { it.lowercase() }
+
+    flavorName to pluginName
+}
+
 plugins {
     alias(libs.plugins.android.application)
 }
 
 android {
-    namespace = "com.hieuxyz.casioemu.example"
+    namespace = "com.bhlk64.casioemu"
     compileSdk = 35
 
     defaultConfig {
@@ -43,6 +57,24 @@ android {
     lint { 
         checkReleaseBuilds = false
         abortOnError = false 
+    }
+    
+    flavorDimensions += "plugin"
+
+    productFlavors {
+        pluginVariants.forEach { (flavorName, pluginName) ->
+            create(flavorName) {
+                dimension = "plugin"
+    
+                applicationIdSuffix = ".$flavorName"
+    
+                externalNativeBuild {
+                    cmake {
+                        arguments += "-DPLUGIN_NAME=$pluginName"
+                    }
+                }
+            }
+        }
     }
 }
 
