@@ -71,6 +71,10 @@ android {
         abortOnError = false 
     }
     
+    buildFeatures {
+        resValues = true
+    }
+    
     flavorDimensions += "plugin"
 
     productFlavors {
