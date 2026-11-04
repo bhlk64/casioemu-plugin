@@ -16,7 +16,7 @@
 // ------------------------------------------------------------
 
 struct InjectorRow {
-    char address[16] = "";
+    char address[10] = "";
     char data[65536] = "";
 };
 
@@ -109,21 +109,21 @@ static void RenderInjectorRows(
         ImGui::PushID(i);
 
         ImGui::SetNextItemWidth(80);
-        ImGui::InputText(("##address" + std::to_string(i)).c_str(), inj.address, 10);
+        ImGui::InputText(("##address" + std::to_string(i)).c_str(), inj[i].address, 10);
     
         if (ImGui::Button(("Paste" + "##" + std::to_string(i)).c_str())) {
             if (ImGui::GetClipboardText() != nullptr) {
-                strncpy(inj.data, ImGui::GetClipboardText(), sizeof(inj.data) - 1);
-                inj.data[sizeof(inj.data) - 1] = '\0';
+                strncpy(inj[i].data, ImGui::GetClipboardText(), sizeof(inj[i].data) - 1);
+                inj[i].data[sizeof(inj[i].data) - 1] = '\0';
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button(("Rop.Clear"_l + "##" + std::to_string(i)).c_str())) {
-            memset(inj.data, 0, sizeof(inj.data));
+        if (ImGui::Button(("Clear" + "##" + std::to_string(i)).c_str())) {
+            memset(inj[i].data, 0, sizeof(inj[i].data));
         }
         ImGui::SameLine();
         if (ImGui::SmallButton("Remove")) {
-            inj.erase(inj.begin() + i);
+            inj[i].erase(inj[i].begin() + i);
             ImGui::PopID();
             break;
         }
@@ -131,8 +131,8 @@ static void RenderInjectorRows(
         ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 1.4f);
         ImGui::InputTextMultiline(
             ("##hex" + std::to_string(i)).c_str(),
-            inj.data,
-            IM_ARRAYSIZE(inj.data) - 1,
+            inj[i].data,
+            IM_ARRAYSIZE(inj[i].data) - 1,
             ImVec2(-1, ImGui::GetTextLineHeight() * 8));
         
         ImGui::PopID();
