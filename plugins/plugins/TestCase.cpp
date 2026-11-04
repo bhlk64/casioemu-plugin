@@ -16,7 +16,7 @@
 // ------------------------------------------------------------
 
 struct InjectorRow {
-    char addr[16] = "";
+    char address[16] = "";
     char data[65536] = "";
 };
 
@@ -109,7 +109,7 @@ static void RenderInjectorRows(
         ImGui::PushID(i);
 
         ImGui::SetNextItemWidth(80);
-        ImGui::InputText(("##addr" + std::to_string(i)).c_str(), inj.addr, 10);
+        ImGui::InputText(("##address" + std::to_string(i)).c_str(), inj.address, 10);
     
         if (ImGui::Button(("Paste" + "##" + std::to_string(i)).c_str())) {
             if (ImGui::GetClipboardText() != nullptr) {
@@ -218,7 +218,7 @@ private:
 
                 for (const auto& row : test.expectations) {
                     file << testName << '|'
-                         << row.addr << '|'
+                         << row.address << '|'
                          << row.data << '\n';
                 }
             }
@@ -264,7 +264,7 @@ private:
             const std::string testName =
                 line.substr(0, first);
 
-            const std::string addr =
+            const std::string address =
                 line.substr(first + 1, second - first - 1);
 
             const std::string data =
@@ -278,9 +278,9 @@ private:
                     InjectorRow row{};
 
                     std::snprintf(
-                        row.addr,
-                        sizeof(row.addr),
-                        "%s", addr.c_str()
+                        row.address,
+                        sizeof(row.address),
+                        "%s", address.c_str()
                     );
 
                     std::snprintf(
