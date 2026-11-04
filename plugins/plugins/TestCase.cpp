@@ -17,7 +17,7 @@
 
 struct InjectorRow {
     char address[16] = "";
-    char data[256] = "";
+    char data[65536] = "";
 };
 
 struct TestResult {
@@ -93,44 +93,61 @@ static uint32_t ParseHex(const char* value) {
 
 static std::string GetTestName(
     const TestRoot& root,
-    int testIndex
+    int testi
 ) {
     return std::string(root.name) +
-        std::to_string(testIndex + 1);
+        std::to_string(testi + 1);
 }
 
 static void RenderInjectorRows(
-    std::vector<InjectorRow>& rows,
+    std::vector<InjectorRow>& inj,
     const char* id
 ) {
     ImGui::PushID(id);
 
-    for (int i = 0; i < static_cast<int>(rows.size()); ++i) {
+    for (int i = 0; i < static_cast<int>(inj.size()); ++i) {
         ImGui::PushID(i);
 
-        ImGui::SetNextItemWidth(120);
-        ImGui::InputText("Address", rows[i].address,
-            sizeof(rows[i].address));
-
+        auto valid_hex = [](char c) {
+            return (c >= '0' && c <= '9') ||
+                   (c >= 'a' && c <= 'f') ||
+                   (c >= 'A' && c <= 'F');
+        };
+    
+        ImGui::SetNextItemWidth(80);
+        ImGui::InputText(("##addr" + std::to_string(i)).c_str(), inj.addr, 10);
+    
+        if (ImGui::Button(("Paste" + "##" + std::to_string(i)).c_str())) {
+            if (ImGui::GetClipboardText() != nullptr) {
+                strncpy(inj.data, ImGui::GetClipboardText(), sizeof(inj.data) - 1);
+                inj.data[sizeof(inj.data) - 1] = '\0';
+            }
+        }
         ImGui::SameLine();
-
-        ImGui::SetNextItemWidth(220);
-        ImGui::InputText("Data", rows[i].data,
-            sizeof(rows[i].data));
-
+        if (ImGui::Button(("Rop.Clear"_l + "##" + std::to_string(i)).c_str())) {
+            memset(inj.data, 0, sizeof(inj.data));
+        }
         ImGui::SameLine();
-
         if (ImGui::SmallButton("Remove")) {
-            rows.erase(rows.begin() + i);
+            inj.erase(inj.begin() + i);
             ImGui::PopID();
             break;
         }
-
+    
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 1.4f);
+        ImGui::InputTextMultiline(
+            ("##hex" + std::to_string(i)).c_str(),
+            inj.data,
+            IM_ARRAYSIZE(inj.data) - 1,
+            ImVec2(-1, ImGui::GetTextLineHeight() * 8));
+    
+        }
+        
         ImGui::PopID();
     }
 
     if (ImGui::Button("+ Add row")) {
-        rows.emplace_back();
+        inj.emplace_back();
     }
 
     ImGui::PopID();
