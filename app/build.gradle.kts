@@ -7,9 +7,21 @@ val pluginFiles = pluginDir
 
 val pluginVariants = pluginFiles.map { source ->
     val pluginName = source.nameWithoutExtension
-    val flavorName = pluginName.replaceFirstChar { it.lowercase() }
+
+    // Prefix "plugin" để không bao giờ bắt đầu bằng "test"
+    val safeName = pluginName.replace(Regex("[^A-Za-z0-9]"), "_")
+    val flavorName = "plugin" + safeName.replaceFirstChar {
+        it.uppercase()
+    }
 
     flavorName to pluginName
+}
+
+require(
+    pluginVariants.map { it.first.lowercase() }.distinct().size ==
+        pluginVariants.size
+) {
+    "Duplicate plugin flavor names detected"
 }
 
 plugins {
