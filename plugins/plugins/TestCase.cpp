@@ -16,7 +16,7 @@
 // ------------------------------------------------------------
 
 struct InjectorRow {
-    char address[16] = "";
+    char addr[16] = "";
     char data[65536] = "";
 };
 
@@ -108,12 +108,6 @@ static void RenderInjectorRows(
     for (int i = 0; i < static_cast<int>(inj.size()); ++i) {
         ImGui::PushID(i);
 
-        auto valid_hex = [](char c) {
-            return (c >= '0' && c <= '9') ||
-                   (c >= 'a' && c <= 'f') ||
-                   (c >= 'A' && c <= 'F');
-        };
-    
         ImGui::SetNextItemWidth(80);
         ImGui::InputText(("##addr" + std::to_string(i)).c_str(), inj.addr, 10);
     
@@ -140,8 +134,6 @@ static void RenderInjectorRows(
             inj.data,
             IM_ARRAYSIZE(inj.data) - 1,
             ImVec2(-1, ImGui::GetTextLineHeight() * 8));
-    
-        }
         
         ImGui::PopID();
     }
@@ -226,7 +218,7 @@ private:
 
                 for (const auto& row : test.expectations) {
                     file << testName << '|'
-                         << row.address << '|'
+                         << row.addr << '|'
                          << row.data << '\n';
                 }
             }
@@ -272,7 +264,7 @@ private:
             const std::string testName =
                 line.substr(0, first);
 
-            const std::string address =
+            const std::string addr =
                 line.substr(first + 1, second - first - 1);
 
             const std::string data =
@@ -286,9 +278,9 @@ private:
                     InjectorRow row{};
 
                     std::snprintf(
-                        row.address,
-                        sizeof(row.address),
-                        "%s", address.c_str()
+                        row.addr,
+                        sizeof(row.addr),
+                        "%s", addr.c_str()
                     );
 
                     std::snprintf(
