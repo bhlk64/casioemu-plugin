@@ -3,13 +3,7 @@
     <application
         android:allowBackup="false"
         android:hasCode="true"
-        android:label="CasioEmu Example Plugin">
-
-        <meta-data android:name="casioemu.plugin.name" android:value="Example Plugin" />
-        <meta-data android:name="casioemu.plugin.author" android:value="hieuxyz" />
-        <meta-data android:name="casioemu.plugin.version" android:value="1.0.0" />
-        <meta-data android:name="casioemu.plugin.desc" android:value="A simple plugin example." />
-        <meta-data android:name="casioemu.plugin.main_lib" android:value="libExamplePlugin.so" />
+        android:label="@string/app_name">
 
         <activity android:name=".PActivity" android:exported="true">
             <intent-filter>
