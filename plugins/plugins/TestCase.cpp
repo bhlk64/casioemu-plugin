@@ -123,7 +123,7 @@ static void RenderInjectorRows(
         }
         ImGui::SameLine();
         if (ImGui::SmallButton("Remove")) {
-            inj[i].erase(inj.begin() + i);
+            inj.erase(inj.begin() + i);
             ImGui::PopID();
             break;
         }
