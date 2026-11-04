@@ -79,7 +79,7 @@ android {
                 dimension = "plugin"
     
                 applicationIdSuffix = ".$flavorName"
-                resValue "string", "app_name", "$flavorName"
+                resValue("string", "app_name", "$flavorName")
     
                 externalNativeBuild {
                     cmake {
