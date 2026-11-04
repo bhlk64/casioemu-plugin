@@ -109,16 +109,16 @@ static void RenderInjectorRows(
         ImGui::PushID(i);
 
         ImGui::SetNextItemWidth(80);
-        ImGui::InputText(("##address" + std::to_string(i)).c_str(), inj[i].address, 10);
+        ImGui::InputText("##address", inj[i].address, 10);
     
-        if (ImGui::Button(("Paste" + "##" + std::to_string(i)).c_str())) {
+        if (ImGui::Button("Paste")) {
             if (ImGui::GetClipboardText() != nullptr) {
                 strncpy(inj[i].data, ImGui::GetClipboardText(), sizeof(inj[i].data) - 1);
                 inj[i].data[sizeof(inj[i].data) - 1] = '\0';
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button(("Clear" + "##" + std::to_string(i)).c_str())) {
+        if (ImGui::Button("Clear")) {
             memset(inj[i].data, 0, sizeof(inj[i].data));
         }
         ImGui::SameLine();
