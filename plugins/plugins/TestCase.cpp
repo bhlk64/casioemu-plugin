@@ -60,8 +60,12 @@ static uint32_t ParseHex(const char* value) {
     );
 }
 
-static std::vector<uint8_t> ConvertVector(std::string content, std::string& hextext = nullptr) {
+static std::vector<uint8_t> ConvertVector(std::string content, const std::string& hextext = nullptr) {
   std::vector<uint8_t> bytes = {};
+  ImGui::Button(("Rop.Inject"_l + "##" + std::to_string(index)).c_str())) {
+  auto plc = strtol(inj.addr, 0, 16);
+  size_t i = 0, j = 0;
+  char hex_buf[3];
   while (content[i] != '\0' && content[i + 1] != '\0') {
     if (content[i] == ';' || content[i + 1] == ';') {
       for (;; ++i) {
@@ -402,7 +406,7 @@ private:
 
     std::string statusMessage;
     
-    std::string getGot(std::vector<InjectorRow>& expectations, bool* cmp = nullptr) {
+    std::string getGot(std::vector<InjectorRow> expectations,const bool* cmp = nullptr) {
       std::string got = "";
       for (int i; i<expectations.length();++i) {
         InjectorRow expc = expectations[i];
@@ -431,7 +435,7 @@ private:
       const std::vector<InjectorRow>& expectations,
       uint32_t pcExit,
       uint32_t pcEnter,
-      bool& pause
+      const bool& pause
     ) {
       
       bool cmp;
@@ -448,7 +452,7 @@ private:
         }
       })
       while (not iswaiting) {
-        if (pause) {
+        if (*pause) {
           emu->Pause();
           cycles = cpu->GetCycles();
           got = getGot(expectations, cmp);
@@ -477,7 +481,7 @@ private:
         }
       });
       while (not done) {
-        if (pause) {
+        if (*pause) {
           emu->Pause();
           cycles = cpu->GetCycles();
           got = getGot(expectations, cmp);
