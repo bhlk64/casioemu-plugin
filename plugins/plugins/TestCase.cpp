@@ -60,43 +60,6 @@ static uint32_t ParseHex(const char* value) {
     );
 }
 
-static std::vector<uint8_t> ConvertVector(std::string content, const std::string& hextext = nullptr) {
-  std::vector<uint8_t> bytes = {};
-  ImGui::Button(("Rop.Inject"_l + "##" + std::to_string(index)).c_str())) {
-  auto plc = strtol(inj.addr, 0, 16);
-  size_t i = 0, j = 0;
-  char hex_buf[3];
-  while (content[i] != '\0' && content[i + 1] != '\0') {
-    if (content[i] == ';' || content[i + 1] == ';') {
-      for (;; ++i) {
-        if (content[i] == '\0')
-          goto exit;
-        if (content[i] == '\n') {
-          ++i;
-          break;
-        }
-      }
-    }
-    else {
-      if (!(valid_hex(content[i]) && valid_hex(content[i + 1]))) {
-        ++i;
-        continue;
-      }
-      hex_buf[0] = content[i];
-      hex_buf[1] = content[i + 1];
-      hex_buf[2] = '\0';
-      uint8_t byte = strtoul(hex_buf, nullptr, 16);
-      bytes+=byte;
-      hex_buf[2] = " ";
-      hextext+=hex_buf
-      i += 2;
-      ++j;
-    }
-  }
-  exit:
-  return bytes
-}
-
 static std::string GetTestName(
     const TestRoot& root,
     int testi
@@ -171,7 +134,7 @@ struct CustomInjection {
 
 std::vector<CustomInjection> customInjections;
 
-bool ParseCustomInjections(const std::string& content) {
+const bool ParseCustomInjections(std::string content) {
     std::vector<CustomInjection> newInjections;
 
     // State machine for robust parsing
@@ -190,7 +153,7 @@ bool ParseCustomInjections(const std::string& content) {
     std::string preprocessed;
     bool in_comment = false;
 
-    for (size_t i = 0; i < content.length(); ++i) {
+    for (size_t i = 0; i < content.size(); ++i) {
         char c = content[i];
 
         if (c == '#') {
@@ -214,7 +177,7 @@ bool ParseCustomInjections(const std::string& content) {
     bool in_quotes = false;
     int brace_level = 0;
 
-    for (size_t i = 0; i < preprocessed.length(); ++i) {
+    for (size_t i = 0; i < preprocessed.size(); ++i) {
         char c = preprocessed[i];
 
         switch (state) {
@@ -375,6 +338,41 @@ bool ParseCustomInjections(const std::string& content) {
     return true;
 }
 
+static std::vector<uint8_t> ConvertVector(std::string content, const std::string& hextext = nullptr) {
+  std::vector<uint8_t> bytes = {};
+  auto plc = strtol(inj.addr, 0, 16);
+  size_t i = 0, j = 0;
+  char hex_buf[3];
+  while (content[i] != '\0' && content[i + 1] != '\0') {
+    if (content[i] == ';' || content[i + 1] == ';') {
+      for (;; ++i) {
+        if (content[i] == '\0')
+          goto exit;
+        if (content[i] == '\n') {
+          ++i;
+          break;
+        }
+      }
+    }
+    else {
+      if (!(valid_hex(content[i]) && valid_hex(content[i + 1]))) {
+        ++i;
+        continue;
+      }
+      hex_buf[0] = content[i];
+      hex_buf[1] = content[i + 1];
+      hex_buf[2] = '\0';
+      uint8_t byte = strtoul(hex_buf, nullptr, 16);
+      bytes+=byte;
+      hex_buf[2] = " ";
+      hextext+=hex_buf
+      i += 2;
+      ++j;
+    }
+  }
+  exit:
+  return bytes
+}
 
 // ------------------------------------------------------------
 // Test Case Window
@@ -408,19 +406,19 @@ private:
     
     std::string getGot(std::vector<InjectorRow> expectations,const bool* cmp = nullptr) {
       std::string got = "";
-      for (int i; i<expectations.length();++i) {
+      for (int i; i<expectations.size();++i) {
         InjectorRow expc = expectations[i];
         got += ParseHex(expc.address);
         got += ": ";
         std::vector<uint8_t> hexvec = ConvertVector(expc.data);
         bool is_correct = true;
-        for (int hi; hi < hexvec.length(); ++hi) {
-          uint8_t bytegot = mmu->ReadData(expc.address+hi)
+        for (int hi; hi < hexvec.size(); ++hi) {
+          uint8_t bytegot = mmu->ReadData(expc.address+hi);
           std::string htextgot = "";
-          sprintf(htextgot, "%02X", bytegot);
+          sprintf(htextgot.c_str(), "%02X", bytegot);
           got += htextgot;
-          if (not hexvec[hi] == bytegot) {
-            is_correct = false
+          if (!(hexvec[hi] == bytegot)) {
+            is_correct = false;
           }
         }
         got += '\n';
@@ -452,14 +450,14 @@ private:
         }
       })
       while (not iswaiting) {
-        if (*pause) {
+        if (pause) {
           emu->Pause();
           cycles = cpu->GetCycles();
           got = getGot(expectations, cmp);
           return {cycles, got, cmp};
         }
       }
-      for (int i; i < customInjections.length(); ++i) {
+      for (int i; i < customInjections.size(); ++i) {
         if (customInjection[i].name == testName) {
           ApplyInjection(customInjection[i]);
           break;
@@ -481,7 +479,7 @@ private:
         }
       });
       while (not done) {
-        if (*pause) {
+        if (pause) {
           emu->Pause();
           cycles = cpu->GetCycles();
           got = getGot(expectations, cmp);
