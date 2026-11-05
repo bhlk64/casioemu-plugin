@@ -36,6 +36,8 @@ struct TestRoot {
 
     std::vector<InjectorRow> input;
     char pcExit[6] = "00000";
+    char pcEnter[6] = "00000";
+
 
     std::array<TestCase, 10> tests;
 };
@@ -44,39 +46,6 @@ static constexpr const char* ROOT_NAMES[] = {
     "ATEST", "BTEST", "CTEST",
     "DTEST", "ETEST", "FTEST"
 };
-
-// ------------------------------------------------------------
-// Dummy runner
-// ------------------------------------------------------------
-
-static TestResult Dummy(
-    const std::string& testName,
-    const std::vector<InjectorRow>& input,
-    const std::vector<InjectorRow>& expectations,
-    uint32_t pcExit
-) {
-    // TODO:
-    // Implement actual test execution here.
-    //
-    // input:
-    //   Shared input injectors belonging to the root.
-    //
-    // expectations:
-    //   Expected memory values for this testcase.
-    //
-    // pcExit:
-    //   PC address at which the test should stop.
-    //
-    // Return:
-    //   cycles, actual memory data (got), comparison result.
-
-    (void)testName;
-    (void)input;
-    (void)expectations;
-    (void)pcExit;
-
-    return {};
-}
 
 // ------------------------------------------------------------
 // Helpers
@@ -89,6 +58,39 @@ static uint32_t ParseHex(const char* value) {
     return static_cast<uint32_t>(
         std::strtoul(value, nullptr, 16)
     );
+}
+
+static std::vector<uint8_t> ConvertVector(std::string content, std::string& hextext = nullptr) {
+  std::vector<uint8_t> bytes = {};
+  while (content[i] != '\0' && content[i + 1] != '\0') {
+    if (content[i] == ';' || content[i + 1] == ';') {
+      for (;; ++i) {
+        if (content[i] == '\0')
+          goto exit;
+        if (content[i] == '\n') {
+          ++i;
+          break;
+        }
+      }
+    }
+    else {
+      if (!(valid_hex(content[i]) && valid_hex(content[i + 1]))) {
+        ++i;
+        continue;
+      }
+      hex_buf[0] = content[i];
+      hex_buf[1] = content[i + 1];
+      hex_buf[2] = '\0';
+      uint8_t byte = strtoul(hex_buf, nullptr, 16);
+      bytes+=byte;
+      hex_buf[2] = " ";
+      hextext+=hex_buf
+      i += 2;
+      ++j;
+    }
+  }
+  exit:
+  return bytes
 }
 
 static std::string GetTestName(
@@ -109,6 +111,8 @@ static void RenderInjectorRows(
         ImGui::PushID(i);
 
         ImGui::SetNextItemWidth(80);
+        ImGui::Text("Addr");
+        ImGui::SameLine();
         ImGui::InputText("##address", inj[i].address, 10);
     
         if (ImGui::Button("Paste")) {
@@ -133,7 +137,7 @@ static void RenderInjectorRows(
             ("##hex" + std::to_string(i)).c_str(),
             inj[i].data,
             IM_ARRAYSIZE(inj[i].data) - 1,
-            ImVec2(-1, ImGui::GetTextLineHeight() * 8));
+            ImVec2(-1, ImGui::GetTextLineHeight() * 4));
         
         ImGui::PopID();
     }
@@ -144,6 +148,229 @@ static void RenderInjectorRows(
 
     ImGui::PopID();
 }
+
+// ------------------------------------------------------------
+// Injection
+// ------------------------------------------------------------
+
+struct InjectionPair {
+    std::string address;
+    std::string data;
+    uint32_t addr_value;
+    std::vector<uint8_t> data_bytes;
+};
+
+struct CustomInjection {
+    std::string name;
+    std::vector<InjectionPair> pairs;
+};
+
+std::vector<CustomInjection> customInjections;
+
+bool ParseCustomInjections(const std::string& content) {
+    std::vector<CustomInjection> newInjections;
+
+    // State machine for robust parsing
+    enum class ParseState {
+        NAME,         // Looking for name
+        EQUALS,         // Looking for equals sign after name
+        OPEN_BRACE,     // Looking for opening brace
+        KEY,         // Looking for address
+        KEY_EQUALS,     // Looking for equals sign after address
+        VALUE_START, // Looking for quote
+        VALUE,         // Reading value data
+        AFTER_VALUE, // Looking for comma or close brace
+    };
+
+    // First pass: preprocess to handle comments and normalize content
+    std::string preprocessed;
+    bool in_comment = false;
+
+    for (size_t i = 0; i < content.length(); ++i) {
+        char c = content[i];
+
+        if (c == '#') {
+            in_comment = true;
+        }
+        else if (c == '\n') {
+            in_comment = false;
+            preprocessed += ' '; // Convert newlines to spaces
+        }
+        else if (!in_comment) {
+            preprocessed += c;
+        }
+    }
+
+    // Second pass: parse with state machine
+    ParseState state = ParseState::NAME;
+    std::string current_name;
+    std::string current_address;
+    std::string current_value;
+    CustomInjection current_injection;
+    bool in_quotes = false;
+    int brace_level = 0;
+
+    for (size_t i = 0; i < preprocessed.length(); ++i) {
+        char c = preprocessed[i];
+
+        switch (state) {
+        case ParseState::NAME:
+            if (std::isalnum(c) || c == '_') {
+                current_name += c;
+            }
+            else if (c == '=' && !current_name.empty()) {
+                TrimString(current_name);
+                state = ParseState::EQUALS;
+            }
+            else if (!std::isspace(c)) {
+                // Invalid character, reset
+                current_name.clear();
+            }
+            break;
+
+        case ParseState::EQUALS:
+            if (c == '{') {
+                current_injection = CustomInjection();
+                current_injection.name = current_name;
+                current_name.clear();
+                brace_level = 1;
+                state = ParseState::KEY;
+            }
+            else if (!std::isspace(c) && c != '=') {
+                // Unexpected character
+                state = ParseState::NAME;
+                current_name.clear();
+            }
+            break;
+
+        case ParseState::OPEN_BRACE:
+            if (c == '{') {
+                current_injection = CustomInjection();
+                current_injection.name = current_name;
+                current_name.clear();
+                brace_level = 1;
+                state = ParseState::KEY;
+            }
+            else if (!std::isspace(c)) {
+                // Unexpected character
+                state = ParseState::NAME;
+                current_name.clear();
+            }
+            break;
+
+        case ParseState::KEY:
+            if (std::isxdigit(c) || c == 'x' || c == 'X' || c == '0') {
+                current_address += c;
+            }
+            else if (c == '=' && !current_address.empty()) {
+                TrimString(current_address);
+                state = ParseState::VALUE_START;
+            }
+            else if (c == '}' && brace_level == 1) {
+                // End of block
+                if (!current_injection.pairs.empty()) {
+                    newInjections.push_back(std::move(current_injection));
+                }
+                brace_level = 0;
+                state = ParseState::NAME;
+            }
+            else if (!std::isspace(c)) {
+                // Reset on unexpected char
+                current_address.clear();
+            }
+            break;
+
+        case ParseState::VALUE_START:
+            if (c == '"') {
+                in_quotes = true;
+                current_value.clear();
+                state = ParseState::VALUE;
+            }
+            else if (!std::isspace(c)) {
+                // Reset on unexpected char
+                state = ParseState::KEY;
+                current_address.clear();
+            }
+            break;
+
+        case ParseState::VALUE:
+            if (c == '"' && in_quotes) {
+                in_quotes = false;
+                // Process the pair
+                if (IsHexString(current_address)) {
+                    InjectionPair pair;
+                    pair.address = current_address;
+                    pair.data = current_value;
+
+                    try {
+                        PrecomputeInjectionValues(pair);
+                        if (!pair.data_bytes.empty()) {
+                            current_injection.pairs.push_back(std::move(pair));
+                        }
+                    }
+                    catch (...) {
+                        // Invalid hex, skip
+                    }
+                }
+
+                current_address.clear();
+                current_value.clear();
+                state = ParseState::AFTER_VALUE;
+            }
+            else if (in_quotes) {
+                // Accept any character inside quotes
+                current_value += c;
+            }
+            break;
+
+        case ParseState::AFTER_VALUE:
+            if (c == ',') {
+                state = ParseState::KEY;
+            }
+            else if (c == '}' && brace_level == 1) {
+                if (!current_injection.pairs.empty()) {
+                    newInjections.push_back(std::move(current_injection));
+                }
+                brace_level = 0;
+                state = ParseState::NAME;
+            }
+            else if (c == '{') {
+                brace_level++;
+            }
+            else if (c == '}') {
+                brace_level--;
+                if (brace_level == 0) {
+                    if (!current_injection.pairs.empty()) {
+                        newInjections.push_back(std::move(current_injection));
+                    }
+                    state = ParseState::NAME;
+                }
+            }
+            break;
+
+        case ParseState::KEY_EQUALS:
+            if (c == '=') {
+                state = ParseState::VALUE_START;
+            }
+            else if (!std::isspace(c)) {
+                state = ParseState::KEY;
+                current_address.clear();
+            }
+            break;
+        }
+    }
+
+    // Handle case where file ends in a valid state
+    if (state == ParseState::AFTER_VALUE && brace_level == 1) {
+        if (!current_injection.pairs.empty()) {
+            newInjections.push_back(std::move(current_injection));
+        }
+    }
+
+    customInjections = std::move(newInjections);
+    return true;
+}
+
 
 // ------------------------------------------------------------
 // Test Case Window
@@ -167,8 +394,134 @@ private:
     int selectedTest = 0;
 
     IPlatformHost* platform = nullptr;
+    Hooks* hooks = nullptr;
+    ICPU* cpu = nullptr;
+    IKeyboard* keyboard = nullptr;
+    IMMU* mmu = nullptr;
+    IEmulator* emu = nullptr;
 
     std::string statusMessage;
+    
+    std::string getGot(std::vector<InjectorRow>& expectations, bool* cmp = nullptr) {
+      std::string got = "";
+      for (int i; i<expectations.length();++i) {
+        InjectorRow expc = expectations[i];
+        got += ParseHex(expc.address);
+        got += ": ";
+        std::vector<uint8_t> hexvec = ConvertVector(expc.data);
+        bool is_correct = true;
+        for (int hi; hi < hexvec.length(); ++hi) {
+          uint8_t bytegot = mmu->ReadData(expc.address+hi)
+          std::string htextgot = "";
+          sprintf(htextgot, "%02X", bytegot);
+          got += htextgot;
+          if (not hexvec[hi] == bytegot) {
+            is_correct = false
+          }
+        }
+        got += '\n';
+      }
+      got += '\0';
+      return got;
+    }
+    
+    TestResult Run(
+      const std::string& testName,
+      const std::vector<InjectorRow>& input,
+      const std::vector<InjectorRow>& expectations,
+      uint32_t pcExit,
+      uint32_t pcEnter,
+      bool& pause
+    ) {
+      
+      bool cmp;
+      std::string got;
+      uint64_t cycles;
+      
+      cpu->SetCyclePause(true);
+      cpu->ClearCycle();
+      cpu->Reset();
+      bool iswaiting = false;
+      hooks->SetupOnCallFunctionHook({
+        if (args.pc_after == 0x1f24c) {
+          iswaiting = true;
+        }
+      })
+      while (not iswaiting) {
+        if (pause) {
+          emu->Pause();
+          cycles = cpu->GetCycles();
+          got = getGot(expectations, cmp);
+          return {cycles, got, cmp};
+        }
+      }
+      for (int i; i < customInjections.length(); ++i) {
+        if (customInjection[i].name == testName) {
+          ApplyInjection(customInjection[i]);
+          break;
+        }
+      }
+      keyboard->PressCode(0x60, true)
+      hooks->SetupOnInstructionHook({
+        if (args.pc_after == pcEnter) {
+          cpu->SetCyclePause(false);
+          keyboard->PressCode(0x60, false)
+        }
+      });
+      bool done = false;
+      hooks->SetupOnInstructionHook({
+        if (args.pc_after == pcExit) {
+          cpu->SetCyclePause(true);
+          emu->Pause();
+          done = true;
+        }
+      });
+      while (not done) {
+        if (pause) {
+          emu->Pause();
+          cycles = cpu->GetCycles();
+          got = getGot(expectations, cmp);
+          return {cycles, got, cmp};
+        }
+      }
+      cycles = cpu->GetCycle();
+      got = cpu->getGot(expectations, cmp);
+      return {cycles, got, cmp};
+    }
+
+    bool Reload() {
+      customInjections = {};
+      std::string injectionFilePath = platform->GetExternalStoragePath();
+      if (injectionFilePath.back() != '/' && injectionFilePath.back() != '\\')
+        injectionFilePath += '/';
+      injectionFilePath += "hc-inj.txt";
+      
+      std::string content;
+      try {
+        std::ifstream file(injectionFilePath, std::ios::binary);
+        if (!file.is_open()) {
+          throw "eror"
+        }
+    
+        content = std::string(
+          (std::istreambuf_iterator<char>(file)),
+          std::istreambuf_iterator<char>());
+        file.close();
+      }
+      ParseCustomInjections(content);
+      catch (...) {return false}
+      return true
+    }
+    
+    bool ApplyInjection(const CustomInjection& inj) {
+        try {
+            for (const auto& pair : inj.pairs) {
+                for (size_t i = 0; i < pair.data_bytes.size(); ++i) {
+                    mmu->WriteData(pair.addr_value + i, pair.data_bytes[i]);
+                }
+            }
+        } catch (...) {}
+    }
 
     // --------------------------------------------------------
     // Config path
@@ -179,7 +532,7 @@ private:
             return {};
 
         const char* directory =
-            platform->GetInternalStoragePath();
+            platform->GetExternalStoragePath();
 
         if (!directory || !*directory)
             return {};
@@ -335,11 +688,7 @@ private:
 
         ImGui::Separator();
 
-        ImGui::Text("PCExit");
-
-        ImGui::SameLine();
-
-        ImGui::TextUnformatted("0x");
+        ImGui::Text("PC Exit:");
 
         ImGui::SameLine();
 
@@ -353,6 +702,18 @@ private:
 
         ImGui::SameLine();
 
+        ImGui::Text("PC Enter:");
+
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(100);
+
+        ImGui::InputText(
+            "##PCEnter",
+            root.pcEnter,
+            sizeof(root.pcEnter)
+        );
+
         if (ImGui::Button("Save config")) {
             statusMessage = SaveConfig()
                 ? "Expectations saved."
@@ -365,6 +726,18 @@ private:
             statusMessage = LoadConfig()
                 ? "Expectations loaded."
                 : "Failed to load config.";
+        }
+        
+        ImGui::SameLine();
+        
+        if (ImGui::Button("Reload")) {
+          std::string state = "Reloading";
+          ImGui::OpenPopup("Reloading"));
+          if (BeginPopup("Reloading")) {
+            ImGui::Text(state);
+            state = Reload() ? "Reloaded" : "Reload Failed";
+          }
+          ImGui::EndPopup();
         }
 
         if (!statusMessage.empty())
@@ -413,15 +786,23 @@ private:
     // --------------------------------------------------------
 
     void RenderTestResult(TestRoot& root, TestCase& test) {
-        const bool hasRun = test.result.cycles != 0;
+        int state = 0;
+        std::vector<std::string> statestr = {"Run","Stop Test","Rerun"};
 
-        if (ImGui::Button(hasRun ? "Rerun" : "Run")) {
-            test.result = Dummy(
-                GetTestName(root, selectedTest),
-                root.input,
-                test.expectations,
-                ParseHex(root.pcExit)
-            );
+        if (ImGui::Button(statestr[state]) {
+            bool pause = false;
+            if (state == 1) {
+                pause = true;
+            } else {
+                test.result = Run(
+                    GetTestName(root, selectedTest),
+                    root.input,
+                    test.expectations,
+                    ParseHex(root.pcExit),
+                    ParseHex(root.pcEnter),
+                    pause
+                );
+            }
         }
 
         ImGui::SameLine();
@@ -477,6 +858,21 @@ private:
 public:
     void SetPlatform(IPlatformHost* host) {
         platform = host;
+    }
+    void SetHooks(Hooks* hook) {
+        hooks = hook;
+    }
+    void SetCPU(ICPU* icpu) {
+        cpu = icpu;
+    }
+    void SetKeyboard(IKeyboard* _keyboard) {
+        keyboard = _keyboard;
+    }
+    void SetMMU(IMMU* _mmu) {
+        mmu = _mmu;
+    }
+    void SetEmu(IEmulator* _emu) {
+        emu = _emu;
     }
 
     void RenderCore() override {
@@ -534,9 +930,12 @@ void fPluginLoad(PluginApi* api) {
 
     auto* window = new TestCaseWindow();
 
-    window->SetPlatform(
-        api->QueryInterface<IPlatformHost>()
-    );
+    window->SetPlatform(api->QueryInterface<IPlatformHost>());
+    window->SetHooks(api->QueryInterface<Hooks>());
+    window->SetCPU(api->QueryInterface<ICPU>());
+    window->SetKeyboard(api->QueryInterface<IKeyboard>());
+    window->SetMMU(api->QueryInterface<IMMU>());
+    window->SetEmu(api->QueryInterface<IEmulator>());
 
     api->AddWindow(window);
 }

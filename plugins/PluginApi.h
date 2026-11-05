@@ -1,10 +1,10 @@
 #pragma once
-#ifndef CASIOEMU_PLUGIN_API
-#include "ModelInfo.h"
-#else
+#ifdef CASIOEMU_PLUGIN_API
 namespace casioemu {
 	struct ModelInfo;
 }
+#else
+#include "ModelInfo.h"
 #endif
 #include <cstdint>
 #include <functional>
@@ -62,6 +62,8 @@ public:
 	virtual std::string GetModelFilePath(std::string relative_path) = 0;
 	virtual void* GetRenderer() = 0;
 	virtual void* GetInterfaceTexture() = 0;
+	virtual const char* GetRunningModelName() = 0;
+	virtual const char* GetRunningRomPath() = 0;
 };
 
 class ICPU {
