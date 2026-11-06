@@ -10,6 +10,8 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <cctype>
 
 // ------------------------------------------------------------
 // Data structures
@@ -132,9 +134,63 @@ struct CustomInjection {
     std::vector<InjectionPair> pairs;
 };
 
+static uint8_t HexToByte(const std::string& hex) {
+	return static_cast<uint8_t>(std::stoul(hex, nullptr, 16));
+}
+
+static void TrimString(std::string& str) {
+  // Trim from start
+  str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](unsigned char ch) {
+    return !std::isspace(ch);
+  }));
+
+  // Trim from end
+  str.erase(std::find_if(str.rbegin(), str.rend(), [](unsigned char ch) {
+    return !std::isspace(ch);
+  }).base(),
+    str.end());
+}
+
+static bool IsHexString(const std::string& str) {
+  if (str.empty())
+    return false;
+  std::string processed = str;
+  if (processed.substr(0, 2) == "0x" || processed.substr(0, 2) == "0X") {
+    processed = processed.substr(2);
+  }
+  return !processed.empty() &&
+       processed.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos;
+}
+
+static void PrecomputeInjectionValues(InjectionPair& pair) {
+  // Process address
+  std::string addr = pair.address;
+  if (addr.substr(0, 2) == "0x" || addr.substr(0, 2) == "0X") {
+    addr = addr.substr(2);
+  }
+  pair.addr_value = std::stoul(addr, nullptr, 16);
+
+  // Process data - remove all whitespace
+  std::string cleaned_data = pair.data;
+  cleaned_data.erase(
+    std::remove_if(cleaned_data.begin(), cleaned_data.end(),
+      [](char c) { return std::isspace(c); }),
+    cleaned_data.end());
+
+  pair.data_bytes.clear();
+  pair.data_bytes.reserve(cleaned_data.length() / 2);
+
+  for (size_t i = 0; i + 1 < cleaned_data.length(); i += 2) {
+    std::string byte_str = cleaned_data.substr(i, 2);
+    if (IsHexString(byte_str)) {
+      pair.data_bytes.push_back(HexToByte(byte_str));
+    }
+  }
+}
+
 std::vector<CustomInjection> customInjections;
 
-const bool ParseCustomInjections(std::string content) {
+static bool ParseCustomInjections(std::string content) {
     std::vector<CustomInjection> newInjections;
 
     // State machine for robust parsing
@@ -338,9 +394,13 @@ const bool ParseCustomInjections(std::string content) {
     return true;
 }
 
-static std::vector<uint8_t> ConvertVector(std::string content, const std::string& hextext = nullptr) {
+static std::vector<uint8_t> ConvertVector(std::string content,std::string& hextext = "") {
   std::vector<uint8_t> bytes = {};
-  auto plc = strtol(inj.addr, 0, 16);
+  auto valid_hex = [](char c) {
+    return (c >= '0' && c <= '9') ||
+          (c >= 'a' && c <= 'f') ||
+          (c >= 'A' && c <= 'F');
+  };
   size_t i = 0, j = 0;
   char hex_buf[3];
   while (content[i] != '\0' && content[i + 1] != '\0') {
@@ -363,15 +423,15 @@ static std::vector<uint8_t> ConvertVector(std::string content, const std::string
       hex_buf[1] = content[i + 1];
       hex_buf[2] = '\0';
       uint8_t byte = strtoul(hex_buf, nullptr, 16);
-      bytes+=byte;
-      hex_buf[2] = " ";
-      hextext+=hex_buf
+      bytes.push_back(byte);
+      hex_buf[2] = ' ';
+      hextext+=hex_buf;
       i += 2;
       ++j;
     }
   }
   exit:
-  return bytes
+  return bytes;
 }
 
 // ------------------------------------------------------------
@@ -406,14 +466,14 @@ private:
     
     std::string getGot(std::vector<InjectorRow> expectations,const bool* cmp = nullptr) {
       std::string got = "";
-      for (int i; i<expectations.size();++i) {
+      for (int i = 0; i<expectations.size();++i) {
         InjectorRow expc = expectations[i];
         got += ParseHex(expc.address);
         got += ": ";
         std::vector<uint8_t> hexvec = ConvertVector(expc.data);
         bool is_correct = true;
-        for (int hi; hi < hexvec.size(); ++hi) {
-          uint8_t bytegot = mmu->ReadData(expc.address+hi);
+        for (int hi = 0; hi < hexvec.size(); ++hi) {
+          uint8_t bytegot = mmu->ReadData(ParseHex(expc.address)+hi);
           std::string htextgot = "";
           sprintf(htextgot.c_str(), "%02X", bytegot);
           got += htextgot;
@@ -435,6 +495,7 @@ private:
       uint32_t pcEnter,
       const bool& pause
     ) {
+      InjectionPair injp = {input.address, input.data, strtoul(input.address,nullptr,16), ConvertVector(input.data)};
       
       bool cmp;
       std::string got;
@@ -444,34 +505,35 @@ private:
       cpu->ClearCycle();
       cpu->Reset();
       bool iswaiting = false;
-      hooks->SetupOnCallFunctionHook({
+      hooks->SetupOnCallFunctionHook([](const FunctionEventArgs& args, bool* iswaiting){
         if (args.pc_after == 0x1f24c) {
           iswaiting = true;
         }
-      })
+      });
       while (not iswaiting) {
         if (pause) {
           emu->Pause();
-          cycles = cpu->GetCycles();
+          cycles = cpu->GetCycle();
           got = getGot(expectations, cmp);
           return {cycles, got, cmp};
         }
       }
-      for (int i; i < customInjections.size(); ++i) {
-        if (customInjection[i].name == testName) {
-          ApplyInjection(customInjection[i]);
+      for (int i = 0; i < customInjections.size(); ++i) {
+        if (customInjections[i].name == testName) {
+          ApplyInjection(customInjections[i]);
           break;
         }
       }
-      keyboard->PressCode(0x60, true)
-      hooks->SetupOnInstructionHook({
+      keyboard->PressCode(0x60, true);
+      hooks->SetupOnInstructionHook([](InstructionEventArgs& args, const uint32_t pcEnter, const InjectionPair& injp){
         if (args.pc_after == pcEnter) {
           cpu->SetCyclePause(false);
-          keyboard->PressCode(0x60, false)
+          keyboard->PressCode(0x60, false);
+          ApplyInjection(injp);
         }
       });
       bool done = false;
-      hooks->SetupOnInstructionHook({
+      hooks->SetupOnInstructionHook([](InstructionEventArgs & args, const uint32_t pcExit, bool& done){
         if (args.pc_after == pcExit) {
           cpu->SetCyclePause(true);
           emu->Pause();
@@ -481,13 +543,13 @@ private:
       while (not done) {
         if (pause) {
           emu->Pause();
-          cycles = cpu->GetCycles();
+          cycles = cpu->GetCycle();
           got = getGot(expectations, cmp);
           return {cycles, got, cmp};
         }
       }
       cycles = cpu->GetCycle();
-      got = cpu->getGot(expectations, cmp);
+      got = getGot(expectations, cmp);
       return {cycles, got, cmp};
     }
 
@@ -502,7 +564,7 @@ private:
       try {
         std::ifstream file(injectionFilePath, std::ios::binary);
         if (!file.is_open()) {
-          throw "eror"
+          throw "eror";
         }
     
         content = std::string(
@@ -511,8 +573,8 @@ private:
         file.close();
       }
       ParseCustomInjections(content);
-      catch (...) {return false}
-      return true
+      catch (...) {return false;}
+      return true;
     }
     
     bool ApplyInjection(const CustomInjection& inj) {
@@ -522,7 +584,8 @@ private:
                     mmu->WriteData(pair.addr_value + i, pair.data_bytes[i]);
                 }
             }
-        } catch (...) {}
+        } catch (...) {return false;}
+        return true;
     }
 
     // --------------------------------------------------------
@@ -734,15 +797,15 @@ private:
         
         if (ImGui::Button("Reload")) {
           std::string state = "Reloading";
-          ImGui::OpenPopup("Reloading"));
-          if (BeginPopup("Reloading")) {
-            ImGui::Text(state);
+          ImGui::OpenPopup("Reloading");
+          if (ImGui::BeginPopup("Reloading")) {
+            ImGui::Text("%d", state);
             state = Reload() ? "Reloaded" : "Reload Failed";
           }
           ImGui::EndPopup();
         }
 
-        if (!statusMessage.empty())
+        if (!statusMessage.empty()) {
             ImGui::TextDisabled("%s", statusMessage.c_str());
     }
 
@@ -791,7 +854,7 @@ private:
         int state = 0;
         std::vector<std::string> statestr = {"Run","Stop Test","Rerun"};
 
-        if (ImGui::Button(statestr[state]) {
+        if (ImGui::Button(statestr[state])) {
             bool pause = false;
             if (state == 1) {
                 pause = true;
