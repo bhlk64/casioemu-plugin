@@ -872,7 +872,7 @@ private:
         emu->Pause();
         cpu->SetCyclePause(true);
         cpu->ClearCycle();
-        cpu->Reset();
+        keyboard->PressCode(0xff, false);
 
         // Start waiting for the initial function call.
         runStage = RunStage::WAIT_CALL;
