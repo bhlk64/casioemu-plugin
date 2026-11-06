@@ -1,5 +1,8 @@
 #include "PluginApi.h"
 #include "PluginHelper.hpp"
+#if !define(__ANDROID__)
+#include "pch.h"
+#endif
 
 class ExampleWindow;
 
@@ -41,3 +44,22 @@ void fPluginLoad(PluginApi* api) {
     wnd = new ExampleWindow();
     api->AddWindow(wnd);
 }
+
+#if !define(__ANDROID__)
+BOOL APIENTRY DllMain(HMODULE hModule,
+	DWORD  ul_reason_for_call,
+	LPVOID lpReserved
+)
+{
+	switch (ul_reason_for_call)
+	{
+	case DLL_PROCESS_ATTACH:
+		break;
+	case DLL_THREAD_ATTACH:
+	case DLL_THREAD_DETACH:
+	case DLL_PROCESS_DETACH:
+		break;
+	}
+	return TRUE;
+}
+#endif

@@ -21,6 +21,11 @@ set(IMGUI_SOURCES
 file(GLOB PLUGIN_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*.cpp"
 )
+if (NOT ANDROID) {
+    file(GLOB WIND_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/wind/*.cpp"
+    )
+}
 
 add_library(${PLUGIN_NAME} SHARED
     "plugins/${PLUGIN_NAME}.cpp"
