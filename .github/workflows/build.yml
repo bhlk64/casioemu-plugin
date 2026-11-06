@@ -159,7 +159,7 @@ jobs:
           arch=${artifact#Windows-}
     
           filename=$(basename "$file" .dll)
-          cp "$file" "release_assets/${filename}-${arch}.dll"
+          cp "$file" "release_assets/CasioEmuMsvc.Plugin.${filename}-${arch}.dll"
         done
     
         ls -lh release_assets
