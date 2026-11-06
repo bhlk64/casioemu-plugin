@@ -18,25 +18,38 @@ set(IMGUI_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp"
 )
 
-file(GLOB PLUGIN_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*.cpp"
-)
-if (NOT ANDROID) 
-    file(GLOB WIND_SOURCES CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/wind/*.cpp"
-    )
+if(NOT ANDROID) 
+    set(WIND_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/wind/*.cpp")
+else()
+    file(WIND_SOURCES "")
 endif()
 
 add_library(${PLUGIN_NAME} SHARED
     "plugins/${PLUGIN_NAME}.cpp"
     ${IMGUI_SOURCES}
+    ${WIND_SOURCES}
 )
 
 target_include_directories(${PLUGIN_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/wind"
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui"
 )
 
 if(ANDROID)
     target_link_libraries(${PLUGIN_NAME} PRIVATE log GLESv2)
+else()
+    target_compile_definitions(${PLUGIN_NAME} PRIVATE _USRDLL CASIOEMU_PLUGIN_API)
+
+    if(WIN32)
+        target_compile_definitions(${PLUGIN_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)
+    endif()
+    
+    target_link_libraries(${PLUGIN_NAME} PRIVATE
+        imm32
+        winmm
+        version
+    )
+    
+    target_link_options(${PLUGIN_NAME} PRIVATE "-static-libgcc" "-static-libstdc++" "-static" "-Wl,--unresolved-symbols=ignore-all")
 endif()
