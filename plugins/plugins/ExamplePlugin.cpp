@@ -1,6 +1,6 @@
 #include "PluginApi.h"
 #include "PluginHelper.hpp"
-#if !define(__ANDROID__)
+#if !defined(__ANDROID__)
 #include "pch.h"
 #endif
 
@@ -45,7 +45,7 @@ void fPluginLoad(PluginApi* api) {
     api->AddWindow(wnd);
 }
 
-#if !define(__ANDROID__)
+#if !defined(__ANDROID__)
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
 	LPVOID lpReserved

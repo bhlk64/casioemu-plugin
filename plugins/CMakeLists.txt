@@ -19,7 +19,7 @@ set(IMGUI_SOURCES
 )
 
 if(NOT ANDROID) 
-    set(WIND_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/wind/*.cpp")
+    set(WIND_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/wind/pch.cpp")
 else()
     set(WIND_SOURCES "")
 endif()
