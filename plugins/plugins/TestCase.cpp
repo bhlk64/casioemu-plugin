@@ -743,7 +743,7 @@ private:
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
 
-                if (args.pc_after != 0x1f24c)
+                if (args.pc != 0x1f24c)
                     return;
 
                 if (cancelRequested.load())
