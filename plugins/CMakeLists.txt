@@ -21,7 +21,7 @@ set(IMGUI_SOURCES
 if(NOT ANDROID) 
     set(WIND_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/wind/*.cpp")
 else()
-    file(WIND_SOURCES "")
+    set(WIND_SOURCES "")
 endif()
 
 add_library(${PLUGIN_NAME} SHARED
