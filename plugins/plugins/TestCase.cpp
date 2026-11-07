@@ -739,6 +739,7 @@ private:
     // Register once. Callbacks remain installed, but only
     // operate while a test is active.
     // --------------------------------------------------------
+    bool regiskey = false;
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
@@ -748,6 +749,8 @@ private:
             [this](const FunctionEventArgs& args) {
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
+
+                if (regiskey) return;
 
                 if (args.pc != 0x1f24c)
                     return;
@@ -780,6 +783,11 @@ private:
 
         hooks->SetupOnInstructionHook(
             [this](InstructionEventArgs& args) {
+                if (regiskey && args.pc_after == 0x1f3de) {
+                    chipset->Reset();
+                    regiskey = false;
+                    return;
+                }
                 const RunStage stage = runStage.load();
 
                 if (stage == RunStage::IDLE)
@@ -840,8 +848,8 @@ private:
             return false;
         }
 
-        if (emu->IsPaused()) emu->Resume(); std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
+        if (emu->IsPaused()) regiskey = true;
+        
         // Validate and snapshot input rows before starting.
         for (const auto& row : root.input) {
             uint32_t address = 0;
