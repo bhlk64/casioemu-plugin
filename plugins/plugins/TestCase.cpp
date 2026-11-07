@@ -739,7 +739,7 @@ private:
     // Register once. Callbacks remain installed, but only
     // operate while a test is active.
     // --------------------------------------------------------
-    bool regiskey = false;
+
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
@@ -749,14 +749,10 @@ private:
             [this](const FunctionEventArgs& args) {
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
-                
-                if (keyboard) keyboard->ReleaseAll();
 
                 if (args.pc != 0x1f24c)
                     return;
                 
-                if (regiskey && keyboard) keyboard->PressCode(0x31,true); regiskey = false; keyboard->ReleaseAll(); return;
-
                 if (cancelRequested.load())
                     return;
 
@@ -777,6 +773,8 @@ private:
                     return;
                 }
                 if (keyboard)
+                    keyboard->PressCode(0x31,true);
+                    keyboard->ReleaseAll();
                     keyboard->PressCode(0x60, true);
 
                 runStage = RunStage::WAIT_ENTER;
