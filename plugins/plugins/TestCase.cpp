@@ -752,7 +752,7 @@ private:
 
                 if (regiskeyl > 0 && args.pc == 0x9f3a) {
                     --regiskeyl;
-                } else if (!(regiskeyl > 0) && args.pc == 0x9f3a) {
+                } else if (!(regiskeyl > 0) && args.lr == 0x1f3be) {
                     chipset->Reset();
                 }
 
