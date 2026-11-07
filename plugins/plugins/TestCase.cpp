@@ -752,12 +752,10 @@ private:
                 
                 if (keyboard) keyboard->ReleaseAll();
 
-                if (regiskeyl > 0) return;
-
                 if (args.pc != 0x1f24c)
                     return;
                 
-                if (regiskey && keyboard) keyboard->PressCode(0x31,true); regiskey = false; keyboard->ReleaseAll();
+                if (regiskey && keyboard) keyboard->PressCode(0x31,true); regiskey = false; keyboard->ReleaseAll(); return;
 
                 if (cancelRequested.load())
                     return;
