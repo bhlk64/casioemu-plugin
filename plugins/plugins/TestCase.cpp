@@ -764,7 +764,11 @@ private:
                         break;
                     }
                 }
-
+                // Apply the root's shared input rows.
+                if (!ApplyInputRows(activeInput)) {
+                    FinishRun();
+                    return;
+                }
                 if (keyboard)
                     keyboard->PressCode(0x60, true);
 
@@ -788,12 +792,6 @@ private:
                     // Release the simulated key.
                     if (keyboard)
                         keyboard->PressCode(0x60, false);
-
-                    // Apply the root's shared input rows.
-                    if (!ApplyInputRows(activeInput)) {
-                        FinishRun();
-                        return;
-                    }
 
                     runStage = RunStage::WAIT_EXIT;
                     return;
