@@ -20,6 +20,8 @@
 #include <mutex>
 #include <limits>
 #include <utility>
+#include <thread>
+#include <chrono>
 
 // ------------------------------------------------------------
 // Data structures
@@ -770,6 +772,7 @@ private:
                     return;
                 }
                 if (keyboard)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     keyboard->PressCode(0x60, true);
 
                 runStage = RunStage::WAIT_ENTER;
@@ -791,7 +794,7 @@ private:
 
                     // Release the simulated key.
                     if (keyboard)
-                        keyboard->PressCode(0x60, false);
+                        keyboard->ReleaseAll();
                     if (cpu)
                         cpu->SetCyclePause(false);
 
@@ -1265,8 +1268,6 @@ private:
             );
         }
 
-        ImGui::Separator();
-
         ImGui::Text("Got");
 
         ImGui::InputTextMultiline(
@@ -1310,6 +1311,7 @@ public:
     }
 
     void RenderCore() override {
+        bool temp = false;
         RenderRootSelector();
 
         TestRoot& root = roots[selectedRoot];
@@ -1317,6 +1319,18 @@ public:
         ImGui::Separator();
 
         RenderRootInput(root);
+
+        if (temp ? ImGui::Text("Running") : ImGui::Button("Run all")) {
+            int old_selectedTest = selectedTest;
+            for (selectedTest = 0; selectedTest < 9, ++selectedTest) {
+                temp = true;
+                TestCase& test = root.tests[selectedTest];
+                StartRun(root, test, selectedTest);
+                temp=false;
+            }
+            selectedTest = old_selectedTest;
+  
+        }
 
         ImGui::Spacing();
 
