@@ -526,11 +526,15 @@ private:
     enum class RunStage {
         IDLE,
         WAIT_CALL,
+        WAIT_GETKEY,
         WAIT_ENTER,
         WAIT_EXIT
     };
-
+    
     std::atomic<RunStage> runStage{RunStage::IDLE};
+    
+    static constexpr uint32_t GETKEY_PC = 0x1f24c;
+    static constexpr uint32_t GETKEY_RETURN_PC = 0x00000; // TODO: địa chỉ thật
 
     std::atomic<bool> cancelRequested{false};
 
@@ -739,80 +743,97 @@ private:
     // Register once. Callbacks remain installed, but only
     // operate while a test is active.
     // --------------------------------------------------------
-    bool regiskey = false;
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
             return;
-
+    
+        // Detect getkey() call.
         hooks->SetupOnCallFunctionHook(
             [this](const FunctionEventArgs& args) {
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
-
-                if (args.pc != 0x1f24c)
+    
+                if (args.pc != GETKEY_PC)
                     return;
-                
-                if (regiskey && keyboard) keyboard->PressCode(0x31,true); regiskey = false; return;
-
+    
                 if (cancelRequested.load())
                     return;
-
-                // Apply the custom injection for this testcase.
-                for (const auto& injection : customInjections) {
-                    if (injection.name == activeTestName) {
-                        if (!ApplyInjection(injection)) {
-                            FinishRun();
-                            return;
-                        }
-
-                        break;
-                    }
-                }
-                // Apply the root's shared input rows.
-                if (!ApplyInputRows(activeInput)) {
-                    FinishRun();
-                    return;
-                }
+    
+                // Wake up getkey.
                 if (keyboard)
-                    keyboard->ReleaseAll();
-                    keyboard->PressCode(0x60, true);
-
-                runStage = RunStage::WAIT_ENTER;
+                    keyboard->PressCode(0x31, true);
+    
+                runStage = RunStage::WAIT_GETKEY;
             }
         );
-
+    
         hooks->SetupOnInstructionHook(
             [this](InstructionEventArgs& args) {
                 const RunStage stage = runStage.load();
-
+    
                 if (stage == RunStage::IDLE)
                     return;
-
+    
                 if (cancelRequested.load())
                     return;
-
-                if (stage == RunStage::WAIT_ENTER &&
-                    args.pc_after == activePCEnter) {
-
-                    // Release the simulated key.
+    
+                // getkey() has returned.
+                if (stage == RunStage::WAIT_GETKEY &&
+                    args.pc_after == GETKEY_RETURN_PC) {
+    
                     if (keyboard)
                         keyboard->ReleaseAll();
+    
+                    // Apply testcase-specific injection.
+                    for (const auto& injection : customInjections) {
+                        if (injection.name == activeTestName) {
+                            if (!ApplyInjection(injection)) {
+                                FinishRun();
+                                return;
+                            }
+    
+                            break;
+                        }
+                    }
+    
+                    // Apply shared input rows.
+                    if (!ApplyInputRows(activeInput)) {
+                        FinishRun();
+                        return;
+                    }
+    
+                    // Press '='.
+                    if (keyboard)
+                        keyboard->PressCode(0x60, true);
+    
+                    runStage = RunStage::WAIT_ENTER;
+                    return;
+                }
+    
+                // Enter PC reached.
+                if (stage == RunStage::WAIT_ENTER &&
+                    args.pc_after == activePCEnter) {
+    
+                    if (keyboard)
+                        keyboard->ReleaseAll();
+    
                     if (cpu)
                         cpu->SetCyclePause(false);
-
+    
                     runStage = RunStage::WAIT_EXIT;
                     return;
                 }
-
+    
+                // Exit PC reached.
                 if (stage == RunStage::WAIT_EXIT &&
                     args.pc_after == activePCExit) {
-
+    
                     FinishRun();
                 }
             }
         );
-
+    
         hooksRegistered = true;
     }
 
@@ -843,8 +864,6 @@ private:
             statusMessage = "Invalid PC Enter or PC Exit address.";
             return false;
         }
-
-        if (emu->IsPaused()) regiskey = true;
 
         
         // Validate and snapshot input rows before starting.
@@ -878,11 +897,14 @@ private:
             test.result = TestResult{};
         }
 
-        // Stop CPU before resetting.
+        const bool wasPaused = emu->IsPaused();
+        
         emu->Pause();
         cpu->SetCyclePause(true);
         cpu->ClearCycle();
-        chipset->Reset();
+        
+        if (wasPaused)
+            chipset->Reset();
 
         // Start waiting for the initial function call.
         runStage = RunStage::WAIT_CALL;
