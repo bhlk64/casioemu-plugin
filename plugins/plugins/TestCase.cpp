@@ -739,7 +739,7 @@ private:
     // Register once. Callbacks remain installed, but only
     // operate while a test is active.
     // --------------------------------------------------------
-
+    bool regiskey = false;
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
@@ -753,6 +753,8 @@ private:
                 if (args.pc != 0x1f24c)
                     return;
                 
+                if (regiskey && keyboard) keyboard->PressCode(0x31,true); regiskey = false; return;
+
                 if (cancelRequested.load())
                     return;
 
@@ -773,7 +775,6 @@ private:
                     return;
                 }
                 if (keyboard)
-                    keyboard->PressCode(0x31,true);
                     keyboard->ReleaseAll();
                     keyboard->PressCode(0x60, true);
 
@@ -842,6 +843,8 @@ private:
             statusMessage = "Invalid PC Enter or PC Exit address.";
             return false;
         }
+
+        if (emu->IsPaused()) regiskey = true;
 
         
         // Validate and snapshot input rows before starting.
