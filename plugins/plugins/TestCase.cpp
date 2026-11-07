@@ -1320,16 +1320,18 @@ public:
 
         RenderRootInput(root);
 
-        if (temp ? ImGui::Text("Running") : ImGui::Button("Run all")) {
-            int old_selectedTest = selectedTest;
-            for (selectedTest = 0; selectedTest < 9; ++selectedTest) {
-                temp = true;
-                TestCase& test = root.tests[selectedTest];
-                StartRun(root, test, selectedTest);
-                temp=false;
+        if (temp) ImGui::Text("Running");
+        else {
+            if (ImGui::Button("Run all")) {
+                int old_selectedTest = selectedTest;
+                for (selectedTest = 0; selectedTest < 9; ++selectedTest) {
+                    temp = true;
+                    TestCase& test = root.tests[selectedTest];
+                    StartRun(root, test, selectedTest);
+                    temp=false;
+                }
+                selectedTest = old_selectedTest;
             }
-            selectedTest = old_selectedTest;
-  
         }
 
         ImGui::Spacing();
