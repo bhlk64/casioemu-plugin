@@ -1309,7 +1309,8 @@ public:
     }
 
     void SetChipset(IChipset* _chipset) {
-       chipset = _chipset;
+        chipset = _chipset;
+    }
 
     void RenderCore() override {
         RenderRootSelector();
