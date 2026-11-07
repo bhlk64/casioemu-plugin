@@ -785,6 +785,8 @@ private:
             [this](InstructionEventArgs& args) {
                 if (regiskeyl > 0 && args.pc_after == 0x1f3de) {
                     --regiskeyl;
+                } else if (!(regiskeyl>0)) {
+                    chipset->Reset();
                 }
                 const RunStage stage = runStage.load();
 
@@ -849,7 +851,7 @@ private:
         if (emu->IsPaused()) {
             regiskeyl = 20;
             if (keyboard) keyboard->ReleaseAll();
-        } else chipset->Reset();
+        }
         
         // Validate and snapshot input rows before starting.
         for (const auto& row : root.input) {
