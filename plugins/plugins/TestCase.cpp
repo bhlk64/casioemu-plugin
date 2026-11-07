@@ -1308,9 +1308,8 @@ public:
         emu = value;
     }
 
-    void SetPlatform(IChipSet* _platform) {
-       platform = _platform;
-    }
+    void SetChipset(IChipset* _chipset) {
+       chipset = _chipset;
 
     void RenderCore() override {
         RenderRootSelector();
@@ -1373,7 +1372,7 @@ void fPluginLoad(PluginApi* api) {
     window->SetKeyboard(api->QueryInterface<IKeyboard>());
     window->SetMMU(api->QueryInterface<IMMU>());
     window->SetEmu(api->QueryInterface<IEmulator>());
-    window->SetPlatform(api->QueryInterface<IPlatform>());
+    window->SetChipset(api->QueryInterface<IChipset>());
 
     api->AddWindow(window);
 }
