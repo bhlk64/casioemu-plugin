@@ -750,7 +750,7 @@ private:
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
 
-                if (regiskeyl != 0) return;
+                if (regiskeyl > 0) return;
 
                 if (args.pc != 0x1f24c)
                     return;
@@ -785,7 +785,6 @@ private:
             [this](InstructionEventArgs& args) {
                 if (regiskeyl > 0 && args.pc_after == 0x1f3de) {
                     --regiskeyl;
-                    return;
                 }
                 const RunStage stage = runStage.load();
 
@@ -848,7 +847,7 @@ private:
         }
 
         if (emu->IsPaused()) {
-            regiskeyl = 120;
+            regiskeyl = 20;
             if (keyboard) keyboard->ReleaseAll();
         } else chipset->Reset();
         
