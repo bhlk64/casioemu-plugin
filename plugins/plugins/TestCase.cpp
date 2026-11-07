@@ -792,6 +792,8 @@ private:
                     // Release the simulated key.
                     if (keyboard)
                         keyboard->PressCode(0x60, false);
+                    if (cpu)
+                        cpu->SetCyclePause(false);
 
                     runStage = RunStage::WAIT_EXIT;
                     return;
@@ -876,7 +878,6 @@ private:
         // Start waiting for the initial function call.
         runStage = RunStage::WAIT_CALL;
 
-        cpu->SetCyclePause(true);
         emu->Resume();
 
         statusMessage = "Test running.";
