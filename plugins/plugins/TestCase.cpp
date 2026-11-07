@@ -772,7 +772,6 @@ private:
                     return;
                 }
                 if (keyboard)
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     keyboard->PressCode(0x60, true);
 
                 runStage = RunStage::WAIT_ENTER;
@@ -840,6 +839,8 @@ private:
             statusMessage = "Invalid PC Enter or PC Exit address.";
             return false;
         }
+
+        if (emu->IsPaused()) emu->Resume(); std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
         // Validate and snapshot input rows before starting.
         for (const auto& row : root.input) {
