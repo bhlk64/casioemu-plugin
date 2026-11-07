@@ -843,8 +843,6 @@ private:
             return false;
         }
 
-        if (emu->IsPaused()) regiskey = true;
-
         
         // Validate and snapshot input rows before starting.
         for (const auto& row : root.input) {
