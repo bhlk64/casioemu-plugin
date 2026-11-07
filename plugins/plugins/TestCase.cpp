@@ -739,7 +739,7 @@ private:
     // Register once. Callbacks remain installed, but only
     // operate while a test is active.
     // --------------------------------------------------------
-    int regiskeyl = 0;
+    bool regiskey = false;
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
@@ -749,17 +749,15 @@ private:
             [this](const FunctionEventArgs& args) {
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
-
-                if (regiskeyl > 0 && args.pc == 0x9f3a) {
-                    --regiskeyl;
-                } else if (!(regiskeyl > 0) && args.lr == 0x1f3be) {
-                    chipset->Reset();
-                }
+                
+                if (keyboard) keyboard->ReleaseAll();
 
                 if (regiskeyl > 0) return;
 
                 if (args.pc != 0x1f24c)
                     return;
+                
+                if (regiskey && keyboard) keyboard->PressCode(0x31,true); regiskey = false; keyboard->ReleaseAll();
 
                 if (cancelRequested.load())
                     return;
@@ -849,10 +847,8 @@ private:
             return false;
         }
 
-        if (emu->IsPaused()) {
-            regiskeyl = 20;
-            if (keyboard) keyboard->ReleaseAll();
-        }
+        if (emu->IsPaused()) regiskey = true;
+
         
         // Validate and snapshot input rows before starting.
         for (const auto& row : root.input) {
