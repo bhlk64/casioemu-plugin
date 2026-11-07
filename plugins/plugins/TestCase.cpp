@@ -740,7 +740,6 @@ private:
     // operate while a test is active.
     // --------------------------------------------------------
     int regiskeyl = 0;
-    bool vro = true;
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
@@ -750,6 +749,12 @@ private:
             [this](const FunctionEventArgs& args) {
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
+
+                if (regiskeyl > 0 && args.pc == 0x9f3a) {
+                    --regiskeyl;
+                } else if (!(regiskeyl > 0) && args.pc == 0x9f3a) {
+                    chipset->Reset();
+                }
 
                 if (regiskeyl > 0) return;
 
@@ -784,12 +789,6 @@ private:
 
         hooks->SetupOnInstructionHook(
             [this](InstructionEventArgs& args) {
-                if (regiskeyl > 0 && args.pc_after == 0x1f3de) {
-                    --regiskeyl;
-                } else if (vro) {
-                    chipset->Reset();
-                    vro = false;
-                }
                 const RunStage stage = runStage.load();
 
                 if (stage == RunStage::IDLE)
@@ -853,7 +852,6 @@ private:
         if (emu->IsPaused()) {
             regiskeyl = 20;
             if (keyboard) keyboard->ReleaseAll();
-            vro = true;
         }
         
         // Validate and snapshot input rows before starting.
