@@ -847,8 +847,10 @@ private:
             return false;
         }
 
-        if (emu->IsPaused()) regiskeyl = 120;
+        if (emu->IsPaused()) {
+            regiskeyl = 120;
             if (keyboard) keyboard->ReleaseAll();
+        else chipset->Reset();
         
         // Validate and snapshot input rows before starting.
         for (const auto& row : root.input) {
