@@ -1322,7 +1322,7 @@ public:
 
         if (temp ? ImGui::Text("Running") : ImGui::Button("Run all")) {
             int old_selectedTest = selectedTest;
-            for (selectedTest = 0; selectedTest < 9, ++selectedTest) {
+            for (selectedTest = 0; selectedTest < 9; ++selectedTest) {
                 temp = true;
                 TestCase& test = root.tests[selectedTest];
                 StartRun(root, test, selectedTest);
