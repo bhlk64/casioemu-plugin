@@ -645,7 +645,7 @@ private:
             std::snprintf(
                 addressText,
                 sizeof(addressText),
-                "%05X: ",
+                "%04X: ",
                 address
             );
 
@@ -1244,9 +1244,7 @@ private:
         const double seconds =
             static_cast<double>(displayedResult.cycles) / 2097152.0;
 
-        ImGui::Text("%.6f s", seconds);
-
-        ImGui::SameLine();
+        ImGui::Text("| %.6f s", seconds);
 
         if (running) {
             ImGui::Text("Running...");
