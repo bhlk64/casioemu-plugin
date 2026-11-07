@@ -517,6 +517,7 @@ private:
     IKeyboard* keyboard = nullptr;
     IMMU* mmu = nullptr;
     IEmulator* emu = nullptr;
+    IChipset* chipset = nullptr;
 
     std::string statusMessage;
 
@@ -872,12 +873,12 @@ private:
         emu->Pause();
         cpu->SetCyclePause(true);
         cpu->ClearCycle();
-        keyboard->PressCode(0xff, true);
+        chipset->Reset();
 
         // Start waiting for the initial function call.
         runStage = RunStage::WAIT_CALL;
 
-        cpu->SetCyclePause(false);
+        cpu->SetCyclePause(true);
         emu->Resume();
 
         statusMessage = "Test running.";
@@ -1307,6 +1308,10 @@ public:
         emu = value;
     }
 
+    void SetPlatform(IChipSet* _platform) {
+       platform = _platform;
+    }
+
     void RenderCore() override {
         RenderRootSelector();
 
@@ -1368,6 +1373,7 @@ void fPluginLoad(PluginApi* api) {
     window->SetKeyboard(api->QueryInterface<IKeyboard>());
     window->SetMMU(api->QueryInterface<IMMU>());
     window->SetEmu(api->QueryInterface<IEmulator>());
+    window->SetPlatform(api->QueryInterface<IPlatform>());
 
     api->AddWindow(window);
 }
