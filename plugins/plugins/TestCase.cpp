@@ -1342,7 +1342,7 @@ public:
                     TestCase& test = root.tests[selectedTest];
                     StartRun(root, test, selectedTest);
                     while (1) {
-                        if (runstate == RunStage::IDLE || temp) break;
+                        if (runStage.load() == RunStage::IDLE || temp) break;
                     }
                     if (temp) break;
                 }
@@ -1350,7 +1350,7 @@ public:
                 selectedTest = old_selectedTest;
             }
         } else {
-            if ImGui::Button("Stop") {
+            if (ImGui::Button("Stop")) {
                 temp = true;
             }
         }
