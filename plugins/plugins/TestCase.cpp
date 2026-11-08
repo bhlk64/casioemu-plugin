@@ -496,7 +496,7 @@ static void RenderInjectorRows(
 // Test Case Window
 // ------------------------------------------------------------
 
-class Tests::TestCaseWindow : public UIWindow {
+class TestCaseWindow : public UIWindow {
 public:
     TestCaseWindow()
         : UIWindow("Test Case Manager") {
