@@ -762,7 +762,7 @@ private:
                     return;
                 }
 
-                if (args.lr != 0x1f33c || regiskey || args.lr != 0x1f3be)  //1f338
+                if (args.lr != 0x1f33c && args.lr != 0x1f3be || regiskey)  //1f338
                     return;
 
                 if (cancelRequested.load())
