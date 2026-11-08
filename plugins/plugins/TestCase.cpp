@@ -739,7 +739,7 @@ private:
     // Register once. Callbacks remain installed, but only
     // operate while a test is active.
     // --------------------------------------------------------
-    bool regiskey = false
+    bool regiskey = false;
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
