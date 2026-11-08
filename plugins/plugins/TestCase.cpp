@@ -749,13 +749,16 @@ private:
             [this](const FunctionEventArgs& args) {
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
-                if (args.lr == 0x1f33c && regiskey) {
-                    keyboard->PressCode(0x13, true);
-                }
-
-                if (args.pc == 0x28b1e && keyboard && regiskey) {
-                    keyboard->ReleaseAll();
-                    regiskey = false;
+                
+                if (keyboard && regiskey) {
+                    if (args.lr == 0x1f33c) {
+                        keyboard->PressCode(0x13, true);
+                    }
+    
+                    if (args.pc == 0x28b1e) {
+                        keyboard->ReleaseAll();
+                        regiskey = false;
+                    }
                     return;
                 }
 
@@ -782,7 +785,6 @@ private:
                     return;
                 }
                 if (keyboard)
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     keyboard->PressCode(0x60, true);
 
                 runStage = RunStage::WAIT_ENTER;
