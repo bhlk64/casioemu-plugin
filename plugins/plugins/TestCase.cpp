@@ -739,6 +739,7 @@ private:
     // Register once. Callbacks remain installed, but only
     // operate while a test is active.
     // --------------------------------------------------------
+    bool regiskey = false
 
     void RegisterHooks() {
         if (hooksRegistered || !hooks)
@@ -748,8 +749,17 @@ private:
             [this](const FunctionEventArgs& args) {
                 if (runStage.load() != RunStage::WAIT_CALL)
                     return;
+                if (args.lr == 0x1f33c && regiskey) {
+                    keyboard->PressCode(0x13, true);
+                }
 
-                if (args.pc != 0x1f24c)
+                if (args.pc == 0x28b1e && keyboard && regiskey) {
+                    keyboard->ReleaseAll();
+                    regiskey = false;
+                    return;
+                }
+
+                if (args.lr != 0x1f33c)  //1f338
                     return;
 
                 if (cancelRequested.load())
@@ -864,6 +874,8 @@ private:
         activeTest = &test;
 
         cancelRequested = false;
+
+        regiskey = emu->IsPaused();
 
         RegisterHooks();
 
@@ -1311,7 +1323,7 @@ public:
     }
 
     void RenderCore() override {
-        bool temp = false;
+        bool temp = true;
         RenderRootSelector();
 
         TestRoot& root = roots[selectedRoot];
@@ -1320,17 +1332,24 @@ public:
 
         RenderRootInput(root);
 
-        if (temp) ImGui::Text("Running");
-        else {
+        if (temp) {
             if (ImGui::Button("Run all")) {
                 int old_selectedTest = selectedTest;
+                temp = false;
                 for (selectedTest = 0; selectedTest < 9; ++selectedTest) {
-                    temp = true;
                     TestCase& test = root.tests[selectedTest];
                     StartRun(root, test, selectedTest);
-                    temp=false;
+                    while (1) {
+                        if (runstate == RunStage::IDLE || temp) break;
+                    }
+                    if (temp) break;
                 }
+                temp = true;
                 selectedTest = old_selectedTest;
+            }
+        } else {
+            if ImGui::Button("Stop") {
+                temp = true;
             }
         }
 
