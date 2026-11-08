@@ -20,6 +20,8 @@
 #include <mutex>
 #include <limits>
 #include <utility>
+#include <thread>
+#include <chrono>
 
 // ------------------------------------------------------------
 // Data structures
@@ -494,7 +496,7 @@ static void RenderInjectorRows(
 // Test Case Window
 // ------------------------------------------------------------
 
-class TestCaseWindow : public UIWindow {
+class Tests::TestCaseWindow : public UIWindow {
 public:
     TestCaseWindow()
         : UIWindow("Test Case Manager") {
@@ -1297,6 +1299,13 @@ private:
     }
 
 public:
+    ~TestCaseWindow() {
+      if (runThread.joinable()) {
+        temp = true;
+        runThread.join();
+      }
+    }
+
     void SetPlatform(IPlatformHost* host) {
         platform = host;
     }
@@ -1378,12 +1387,6 @@ public:
     }
 };
 
-~TestCaseWindow() {
-  if (runThread.joinable()) {
-    temp = true;
-    runThread.join();
-  }
-}
 // ------------------------------------------------------------
 // Plugin entry
 // ------------------------------------------------------------
