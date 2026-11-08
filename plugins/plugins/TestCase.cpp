@@ -48,9 +48,6 @@ struct TestRoot {
 
     std::vector<InjectorRow> input;
 
-    char pcExit[6] = "00000";
-    char pcEnter[6] = "00000";
-
     std::array<TestCase, 10> tests;
 };
 
@@ -510,6 +507,9 @@ public:
 private:
     std::array<TestRoot, 6> roots;
 
+    char pcExit[6] = "00000";
+    char pcEnter[6] = "00000";
+
     int selectedRoot = 0;
     int selectedTest = 0;
 
@@ -850,8 +850,8 @@ private:
         uint32_t pcEnter = 0;
         uint32_t pcExit = 0;
 
-        if (!ParseHexChecked(root.pcEnter, pcEnter) ||
-            !ParseHexChecked(root.pcExit, pcExit)) {
+        if (!ParseHexChecked(pcEnter, pcEnter) ||
+            !ParseHexChecked(pcExit, pcExit)) {
             statusMessage = "Invalid PC Enter or PC Exit address.";
             return false;
         }
@@ -1144,8 +1144,8 @@ private:
 
         ImGui::InputText(
             "##PCExit",
-            root.pcExit,
-            sizeof(root.pcExit)
+            pcExit,
+            sizeof(pcExit)
         );
 
         ImGui::SameLine();
@@ -1157,8 +1157,8 @@ private:
 
         ImGui::InputText(
             "##PCEnter",
-            root.pcEnter,
-            sizeof(root.pcEnter)
+            pcEnter,
+            sizeof(pcEnter)
         );
 
         if (ImGui::Button("Save config")) {
