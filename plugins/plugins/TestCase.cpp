@@ -20,8 +20,6 @@
 #include <mutex>
 #include <limits>
 #include <utility>
-#include <thread>
-#include <chrono>
 
 // ------------------------------------------------------------
 // Data structures
@@ -547,6 +545,9 @@ private:
     uint32_t activePCExit = 0;
 
     mutable std::mutex resultMutex;
+    
+    std::thread runThread;
+    std::atomic<bool> temp{true};
 
     // --------------------------------------------------------
     // Injection application
@@ -1325,7 +1326,6 @@ public:
     }
 
     void RenderCore() override {
-        bool temp = true;
         RenderRootSelector();
 
         TestRoot& root = roots[selectedRoot];
@@ -1333,21 +1333,27 @@ public:
         ImGui::Separator();
 
         RenderRootInput(root);
-
-        if (temp) {
+        
+        if (temp.load()) {
             if (ImGui::Button("Run all")) {
-                int old_selectedTest = selectedTest;
                 temp = false;
-                for (selectedTest = 0; selectedTest < 9; ++selectedTest) {
-                    TestCase& test = root.tests[selectedTest];
-                    StartRun(root, test, selectedTest);
-                    while (1) {
-                        if (runStage.load() == RunStage::IDLE || temp) break;
+                runThread = std::thread([this, &root]() {
+                    for (int i = 0; i < 9; ++i) {
+                        if (temp.load())
+                            break;
+                        StartRun(root, root.tests[i], i);
+                        while (runStage.load() != RunStage::IDLE) {
+                            if (temp.load())
+                                break;
+                            std::this_thread::sleep_for(
+                                std::chrono::milliseconds(5)
+                            );
+                        }
+                        if (temp.load())
+                            break;
                     }
-                    if (temp) break;
-                }
-                temp = true;
-                selectedTest = old_selectedTest;
+                    temp = true;
+                });
             }
         } else {
             if (ImGui::Button("Stop")) {
@@ -1372,6 +1378,12 @@ public:
     }
 };
 
+~TestCaseWindow() {
+  if (runThread.joinable()) {
+    temp = true;
+    runThread.join();
+  }
+}
 // ------------------------------------------------------------
 // Plugin entry
 // ------------------------------------------------------------
